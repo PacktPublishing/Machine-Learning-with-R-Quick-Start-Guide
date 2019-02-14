@@ -1,0 +1,894 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+
+
+
+-	**help.start():** Start the hypertext (currently HTML) version of R's online documentation.
+-	**help(command)/??command/help.search(command):** display the help related to a specific command.
+-	**demo():** is a user-friendly interface to running some demonstrations of R scripts.
+-	**library(help=package):** list functions and datasets in a package.
+-	**getwd():**  print the current working directory.
+-	**ls():** list the objects in the current workspace.
+-	**setwd(mydirectory):** change working directory to mydirectory.
+-	**options():** view current option settings.
+-	**options(digits=3):** number of digits to print on output.
+-	**history():** display last 25 commands.
+-	**history(max.show=Inf):** display all previous commands.
+-	**savehistory(file="myfile"):** save the history (default file is a ".Rhistory" file).
+- **loadhistory(file="myfile"):** recall your command history.
+- **save.image():** save the workspace to the file “.RData” in the working directory.
+-	**save(object list,file="myfile.RData"):** save specific objects to a file.
+-	**load("myfile.RData"):** load specific object from a file.
+-	**q():** quit R. You will be prompted to save the workspace.
+-	**library(package):** loads a library specific to a project.
+-	**install.package(package):** download and install packages from CRAN-like repositories or from local files.
+-	**rm(object1, object2…):** remove objects.
+
+
+
+```{r}
+
+n<-10
+n
+
+```
+
+
+```{r}
+
+n+5
+
+```
+
+
+
+```{r}
+
+x<-4
+y<-3
+
+```
+
+
+```{r}
+
+x + y
+
+```
+
+
+
+```{r}
+
+x - y
+
+```
+
+
+```{r}
+
+x * y
+
+```
+
+
+
+```{r}
+
+x / y
+
+```
+
+
+
+```{r}
+
+x ** y
+
+```
+
+
+
+```{r}
+
+x * pi
+
+```
+
+
+
+```{r}
+
+exp(y)
+
+```
+
+
+
+```{r}
+
+sign(y)
+
+```
+
+
+
+```{r}
+
+max(x,y)
+
+```
+
+
+
+```{r}
+
+min(x,y)
+
+```
+
+
+```{r}
+
+factorial(y)
+
+```
+
+
+
+```{r}
+
+sqrt(y)
+
+```
+
+
+
+```{r}
+
+z <- x + y
+z
+
+```
+
+
+
+
+```{r}
+
+x > y
+
+x + y != 8
+
+```
+
+
+
+```{r}
+
+a<-c(1,3,5,8)
+a
+
+```
+
+
+
+```{r}
+
+y <- c(1,3)
+class(y)
+
+```
+
+
+
+```{r}
+
+y <- c(1,5,1)
+y + 3
+
+```
+
+
+
+```{r}
+
+c(1:10)
+
+```
+
+
+
+```{r}
+
+seq(1, 5, by=0.1)
+
+seq(1, 5, length.out=22)
+
+```
+
+
+
+```{r}
+
+rep(3,20)
+
+```
+
+
+
+```{r}
+
+x <- c(9,8,1,5)
+
+```
+
+
+
+```{r}
+
+x[-3]
+
+```
+
+
+
+```{r}
+
+x[1:2]
+
+```
+
+
+```{r}
+
+x[x>0 & x<4]
+
+```
+
+
+
+```{r}
+
+x[c(TRUE, FALSE, FALSE, TRUE)]
+
+```
+
+
+```{r}
+
+sum(x)
+
+```
+
+
+
+```{r}
+
+prod(x)
+
+```
+
+
+
+
+```{r}
+
+length(x)
+
+```
+
+
+
+```{r}
+
+x
+
+x[1]<-22
+
+x
+
+```
+
+
+```{r}
+
+r<-c(1,4,7,9,8,1)
+r<-factor(r)
+r
+
+```
+
+
+
+```{r}
+
+levels(r)
+
+```
+
+
+
+```{r}
+
+factor(r, exclude=4)
+
+```
+
+
+
+```{r}
+
+a<- c(1,2,7,7,1,2,2,7,1,7)
+a<- factor(a, levels=c(1,2,7), ordered=TRUE)
+a
+
+```
+
+
+
+```{r}
+
+c<-"This is our first string"
+c
+
+class(c)
+
+```
+
+
+
+```{r}
+
+nchar(c) 
+
+```
+
+
+
+```{r}
+
+substring(c,4) 
+
+```
+
+
+
+```{r}
+
+substring(c,1,4) 
+
+```
+
+
+
+
+```{r}
+
+strsplit(c, " ") 
+
+```
+
+
+
+```{r}
+
+grep("our", c) 
+
+grep("book", c)
+
+```
+
+
+
+```{r}
+
+regexpr("our", c) 
+
+```
+
+
+
+```{r}
+
+tolower(c)
+
+```
+
+
+```{r}
+
+toupper(c)
+
+```
+
+
+```{r}
+
+sub("our", "my", c) 
+
+```
+
+
+
+```{r}
+
+gsub("our", "my", c) 
+
+```
+
+
+```{r}
+
+paste(c,"My book",sep=" : ")
+
+```
+
+
+
+```{r}
+
+m<-matrix(c(1,2,3,4,5,6), nrow=2, ncol=3)
+m
+
+```
+
+
+
+```{r}
+
+m<-matrix(c(1,2,3,4,5,6), nrow=2, ncol=3,byrow=TRUE)
+m
+
+```
+
+ 
+
+```{r}
+
+m<-matrix(c(1,2,3,4,5,6), nrow=2, ncol=3,byrow=TRUE,dimnames=list(c('Obs1', 'Obs2'), c('col1', 'Col2','Col3')))
+m
+
+```
+
+
+
+```{r}
+
+rbind(1:3,4:6,10:12)
+
+cbind(1:3,4:6,10:12)
+ 
+m<-array(c(1,2,3,4,5,6), dim=c(2,3))
+m
+
+```
+
+
+
+```{r}
+
+m<-array(c(1,2,3,4,5,6), dim=c(2,3))
+m
+
+```
+
+```{r}
+
+m[1,2]
+
+```
+
+
+```{r}
+
+m[2,2]
+
+```
+
+
+
+```{r}
+
+m[2,]
+
+```
+
+
+
+```{r}
+
+m[,1]
+
+```
+
+
+
+```{r}
+
+m<-matrix(c(1,2,3,4,5,6,7,8,9), nrow=3, ncol=3)
+m
+
+diag(m)
+
+```
+
+
+
+```{r}
+
+dim(m)
+
+```
+
+
+
+```{r}
+
+colSums(m)
+
+```
+
+
+
+```{r}
+
+rowSums(m)
+
+```
+
+
+
+```{r}
+
+t(m)
+
+```
+
+
+
+```{r}
+
+det(m)
+
+```
+
+
+
+```{r}
+
+eigen(m)
+
+```
+
+
+
+```{r}
+
+x<- list(1:4,"book",TRUE, 1+4i)
+x
+
+```
+
+
+```{r}
+
+x[[1]]
+
+```
+
+
+
+```{r}
+
+x[[1]][2:4]
+
+```
+
+
+```{r}
+
+a <- c(1, 3, 5) 
+b <- c("red", "yellow", "blue") 
+c <- c(TRUE, FALSE, TRUE) 
+df <- data.frame(a, b, c)  
+df
+```
+
+
+
+
+```{r}
+
+df[2,1]
+
+```
+
+
+
+```{r}
+
+df[,"a"]
+
+```
+
+
+
+```{r}
+
+data(iris)
+
+```
+
+
+
+
+```{r}
+
+ncol(iris)
+
+```
+
+
+
+```{r}
+
+nrow(iris)
+
+```
+
+
+```{r}
+
+head(iris,10)
+
+```
+
+
+```{r}
+
+tail(iris,5)
+
+```
+
+
+```{r}
+
+str(iris)
+
+```
+
+
+
+```{r eval = FALSE}
+
+install.packages("foreign")
+
+library(foreign)
+
+```
+
+
+
+```{r eval = FALSE}
+
+install.packages("Hmisc")
+
+library(Hmisc)
+
+```
+
+
+
+```{r eval = FALSE}
+
+mydata<-read.table("c:/mydata.csv", header=TRUE,sep=",", row.names="id")
+
+```
+
+
+
+```{r eval = FALSE}
+
+library(xlsx)
+mydata<-read.xlsx("c:/myexcel.xlsx", 1)
+
+```
+
+
+
+```{r eval = FALSE}
+
+mydata<-read.xlsx("c:/myexcel.xlsx", sheetName= "mysheet")
+
+```
+
+
+
+```{r eval = FALSE}
+
+library(foreign)
+mydata<-read.systat("c:/mydata.dta")
+
+```
+
+
+```{r eval = FALSE}
+
+library(Hmisc)
+mydata<-spss.get("c:/mydata.por", use.value.labels=TRUE)
+
+
+```
+
+
+```{r eval = FALSE}
+
+library(Hmisc)
+mydata<-sasxport.get("c:/mydata.xpt")
+
+```
+
+
+```{r eval = FALSE}
+
+library(foreign)
+mydata<-read.dta("c:/mydata.dta")
+
+```
+
+
+```{r eval = FALSE}
+
+write.table(mydata, "c:/mydata.txt", sep="\t") 
+
+```
+
+
+```{r eval = FALSE}
+
+library(xlsx)
+write.xlsx(mydata, "c:/mydata.xlsx")
+
+```
+
+
+```{r eval = FALSE}
+
+library(foreign)
+write.foreign(mydata, "c:/mydata.txt", "c:/mydata.sps",   package="SPSS") 
+
+```
+
+
+```{r eval = FALSE}
+
+library(foreign)
+write.foreign(mydata, "c:/mydata.txt", "c:/mydata.sas",   package="SAS")
+
+```
+
+
+```{r eval = FALSE}
+
+library(foreign)
+write.dta(mydata, "c:/mydata.dta")
+
+```
+
+
+```{r}
+
+squaredNum<-function(number){
+  a<-number^2
+  return(a)
+}
+
+```
+
+
+```{r}
+
+squaredNum(425)
+
+```
+
+
+
+```{r}
+
+x<-4
+y<-3
+
+```
+
+```{r}
+
+if (x >3) {
+ y <- 10
+} else {
+ y<- 0
+}
+
+```
+
+
+
+```{r}
+
+print(y)
+
+```
+
+
+
+```{r}
+
+for (i in 1:10){
+ print(i)
+}
+
+```
+
+
+```{r}
+
+x<- matrix(1:6,2,3)
+
+for (i in seq_len(nrow(x))){
+  for (j in seq_len(ncol(x))){
+    print(x[i,j])}
+}
+
+```
+
+
+
+```{r}
+
+x <- 1
+
+while (x >= 1 & x < 20) {
+  print(x)
+  x = x+1
+  }
+
+```
+
+
+
+```{r}
+
+x <- 1
+
+repeat {
+  print(x)
+  x = x+1
+  if (x == 6){
+    break 
+    }
+  }
+
+```
+
+
+
+```{r}
+
+for (i in 1:15){
+     if (i <= 5){
+     next
+     } else { print(i)
+ } }
+
+```
+
+
+
+
+
+ 
+
