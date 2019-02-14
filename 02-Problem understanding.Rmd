@@ -1,0 +1,44 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+
+
+
+```{r results='hide', message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(tidyquant)
+library(scales)
+library(tibbletime)
+library(lattice)
+
+```
+
+
+
+```{r}
+
+indicator<- c("UNRATE") 
+
+unemployment<-tq_get(indicator, get="economic.data",  from= "2000-01-01", to= "2018-01-01")
+
+```
+
+
+```{r}
+
+head(unemployment)
+
+```
+
+
+```{r out.width = "70%" ,fig.align = "center",fig.cap='Evolution of unemployment in US'}
+
+xyplot(price ~ date, data=unemployment,ylab="Unemployment Rate", xlab="Date",auto.key = TRUE,
+main="Evolution of unemployment in US")
+
+```
+
+

@@ -1,0 +1,466 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+
+
+
+```{r}
+myfiles <- list.files(path = "../MachineLearning/Banks_model/Data", pattern = "20",  full.names = TRUE)
+
+myfiles
+
+```
+
+
+
+
+```{r results='hide', message=FALSE, warning=FALSE,important-computing, cache=TRUE}
+
+library(readr)
+
+t <- proc.time()
+
+for (i in 1:length(myfiles)){
+
+tables<-list() 
+myfiles <- list.files(path = "../MachineLearning/Banks_model/Data", pattern = "20",  full.names = TRUE)
+
+filelist <- list.files(path = myfiles[i], pattern = "*",  full.names = TRUE)
+filelist<-filelist[1:(length(filelist)-1)]
+
+for (h in 1:length(filelist)){
+
+#assuming tab separated values with a header    
+aux = as.data.frame(read_delim(filelist[h],  "\t", escape_double = FALSE, col_names = FALSE, trim_ws = TRUE, skip = 2))
+
+variables<-colnames(as.data.frame(read_delim(filelist[h],  "\t", escape_double = FALSE, col_names = TRUE, trim_ws = TRUE, skip = 0)))
+
+colnames(aux)<-variables
+
+dataset_name<-paste("aux",h,sep='')
+tables[[h]]<-assign(dataset_name,aux)
+
+}
+
+final_data_name<-paste("year",i+2001,sep='')
+union <- Reduce(function(x, y) merge(x, y, all=T, 
+    by=c("ID RSSD","Reporting Period")), tables, accumulate=F)
+
+assign(final_data_name,union)
+rm(list=ls()[! ls() %in% c(ls(pattern="year*"),"tables","t")])
+}
+
+proc.time() - t 
+
+```
+
+
+
+```{r}
+
+rm(tables)
+database<-rbind(year2002,year2003,year2004,year2005,year2006,year2007,year2008,year2009,year2010,year2011,year2012,year2013,year2014,year2015,year2016)
+
+```
+
+
+```{r}
+
+rm(list=ls()[! ls() %in% c(ls(pattern="database"))])
+
+```
+
+
+```{r}
+
+print("Number of observations:")
+print(nrow(database))
+
+```
+
+
+```{r}
+
+print("Number of columns/variables:")
+ncol(database)
+
+```
+
+
+
+```{r}
+
+head(database[,1:5])
+
+```
+
+
+
+```{r}
+
+database[,grep(".x",colnames(database))]<-NULL
+
+```
+
+
+```{r}
+
+nombres<-names(database)
+
+nombres<-gsub(".y","",nombres)
+
+colnames(database)<-nombres
+
+rm(nombres)
+
+```
+
+
+```{r}
+
+database[,grep("X",colnames(database))]<-NULL
+
+```
+
+
+```{r}
+
+save.image("Data1.RData")
+
+```
+
+
+
+```{r}
+
+head(database$'Reporting Period')
+
+```
+
+
+
+```{r}
+
+class(database$'Reporting Period')
+
+```
+
+
+
+```{r}
+
+database$Date<-substr(database$'Reporting Period',1,10)
+
+```
+
+
+```{r}
+
+database$Date<-as.Date(database$Date,"%m/%d/%Y")
+
+```
+
+
+
+```{r}
+
+database$'Reporting Period'<-NULL
+
+```
+
+
+
+```{r}
+
+database<-database[as.numeric(format(database$Date, "%m"))==12,]
+
+```
+
+
+```{r}
+
+print("Observations in the filtered dataset:")
+nrow(database)
+
+```
+
+
+
+```{r}
+
+print("Columns in the filtered dataset:")
+ncol(database)
+
+```
+
+
+
+```{r}
+
+save.image("Data2.RData")
+
+```
+
+
+```{r}
+
+database_names<-data.frame(colnames(database))
+
+```
+
+
+```{r}
+
+write.csv(database_names,file="database_names.csv")
+
+rm(database_names)
+
+```
+
+
+
+```{r}
+
+download.file("https://www.fdic.gov/bank/individual/failed/banklist.csv", "failed_banks.csv",method="auto", quiet=FALSE, mode = "wb", cacheOK = TRUE)
+
+```
+
+
+```{r}
+
+failed_banks<-read.csv("failed_banks.csv", header=TRUE)
+
+```
+
+
+
+```{r}
+
+str(failed_banks)      # Provides the structure of the dataset
+
+```
+
+
+```{r}
+
+head(failed_banks,n=10)# First 10 rows of dataset
+
+```
+
+
+```{r}
+
+class(failed_banks$Closing.Date)
+
+```
+
+
+
+```{r}
+
+library(lubridate)
+
+failed_banks$Closing.Date <- dmy(failed_banks$Closing.Date)
+class(failed_banks$Closing.Date)
+
+```
+
+
+```{r}
+
+failed_banks$year<-as.numeric(format(failed_banks$Closing.Date, "%Y")) 
+
+Failed_by_Year<-as.data.frame(table(failed_banks$year))
+colnames(Failed_by_Year)<-c("year","Number_of_banks")
+
+print(Failed_by_Year)
+
+```
+
+
+
+```{r}
+library(ggplot2)
+
+theme_set(theme_classic())
+
+# Plot
+g <- ggplot(Failed_by_Year, aes(year, Number_of_banks))
+g + geom_bar(stat="identity", width = 0.5, fill="tomato2") + 
+      labs(title="Number of failed banks over the time", 
+           caption="Source: FDIC list of failed banks") +
+      theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+```
+
+
+```{r}
+
+myfiles <- list.files(path = "../MachineLearning/Banks_model/Data/IDS", pattern = "FFIEC CDR Call Bulk POR",  full.names = TRUE) 
+
+```
+
+
+```{r}
+
+IDs<-matrix("NA",0,4)
+colnames(IDs)<-c("ID RSSD","CERT","Name","id_year")
+IDs<-as.data.frame(IDs)
+
+```
+
+
+
+```{r}
+
+for (i in 1:length(myfiles)){
+  
+aux <- read.delim(myfiles[i])
+aux$year<-as.numeric(2000+i)
+aux<-aux[,c(1,2,6,ncol(aux))]
+colnames(aux)<-c("ID RSSD","CERT","Name","id_year")
+
+IDs<-rbind(IDs,aux)
+
+}
+
+```
+
+
+```{r}
+
+head(IDs)
+
+```
+
+
+```{r}
+
+rm(list=setdiff(ls(), c("database","failed_banks","IDs")))
+
+```
+
+
+
+```{r}
+
+failed_banks$CERT<-as.numeric(failed_banks$CERT)
+
+IDs$CERT<-as.numeric(IDs$CERT)
+
+```
+
+
+```{r}
+
+failed_banks$id_year<-failed_banks$year-1
+
+```
+
+
+
+```{r}
+
+failed_banks<-merge(failed_banks,IDs,by.x=c("CERT","id_year"),all.x=TRUE)
+
+failed_banks<-failed_banks[,c("CERT","ID RSSD","Closing.Date")]
+
+```
+
+```{r}
+
+head(failed_banks)
+
+```
+
+
+```{r}
+
+save.image("Data3.RData")
+
+```
+
+
+```{r}
+
+database<-merge(database,failed_banks,by=c("ID RSSD"),all.x = TRUE)
+
+```
+
+
+```{r}
+
+grep("UBPR4340",colnames(database))
+
+```
+
+
+```{r}
+
+database[,1454]<-NULL
+
+```
+
+
+
+```{r}
+
+nrow(database[!is.na(database$Closing.Date),c('ID RSSD','Date','Closing.Date')])
+
+```
+
+
+
+```{r}
+
+failed_data<-database[!is.na(database$Closing.Date),c('ID RSSD','Date','Closing.Date')]
+head(failed_data)
+
+```
+
+
+
+```{r}
+
+database$Diff<-as.numeric((database$Closing.Date-database$Date)/365)
+
+```
+
+
+```{r}
+
+database$Default0<-ifelse(database$Diff>=1 | is.na(database$Diff),0,1)
+
+```
+
+
+```{r}
+
+table(database$Default0)
+
+```
+
+
+```{r}
+
+head(database[database$Default0==1,c('ID RSSD','Date','Closing.Date','Diff')],1)
+
+```
+
+
+```{r}
+
+database$Default0<-NULL
+
+```
+
+
+```{r}
+
+save.image("Data4.RData")
+
+```
+
+
