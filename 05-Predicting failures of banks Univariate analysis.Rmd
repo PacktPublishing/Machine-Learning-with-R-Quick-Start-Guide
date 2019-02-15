@@ -1,0 +1,528 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+
+
+```{r}
+
+aux_original<-train
+
+aux_original$Defaultf<-as.numeric(as.character(aux_original$Default))
+
+aux_original$Defaultf<-ifelse(aux_original$Default==1,0,1)
+
+```
+
+
+```{r}
+
+aux_nomiss<-train_nomiss
+
+aux_nomiss$Defaultf<-as.numeric(as.character(aux_nomiss$Default))
+
+aux_nomiss$Defaultf<-ifelse(aux_nomiss$Default==1,0,1)
+
+```
+
+
+```{r results='hide', message=FALSE, warning=FALSE}
+
+library(smbinning)
+
+table_iv<-matrix("NA",0,5)
+
+table_iv<-data.frame(table_iv)
+
+colnames(table_iv)<-c("Char","IV_original","Process_original","IV_nomiss","Process_nomiss")
+
+for (var in 1:length(aux_original[,2:1408])){
+
+variable<-colnames(aux_original)[var+1]
+aux_original2<-aux_original[,c(variable,"Defaultf")]
+aux_nomiss2<-aux_nomiss[,c(variable,"Defaultf")]
+temp1<-smbinning.sumiv(aux_original2, "Defaultf")
+temp2<-smbinning.sumiv(aux_nomiss2, "Defaultf")
+colnames(temp1)<-c("Char","IV_original","Process_original")
+colnames(temp2)<-c("Char","IV_nomiss","Process_nomiss")
+temp2$Char<-NULL
+temp1<-cbind(temp1,temp2)
+table_iv<-rbind(table_iv,temp1)
+
+}
+
+```
+
+
+```{r}
+
+save.image("Data8.RData")
+
+```
+
+
+```{r}
+
+head(table_iv)
+
+```
+
+```{r}
+
+table(table_iv$Process_original)
+
+```
+
+```{r}
+
+table(table_iv$Process_nomiss)
+
+```
+
+
+```{r}
+
+diff_iv<-table_iv[complete.cases(table_iv) & table_iv$Process_original=="Numeric binning OK" &
+table_iv$Process_nomiss=="Numeric binning OK" ,]
+
+diff_iv$diff<-(diff_iv$IV_nomiss - diff_iv$IV_original)
+
+```
+
+
+```{r}
+
+hist(diff_iv$diff, border=TRUE , col=rgb(0.8,0.2,0.8,0.7) , main="" ,  xlab="Differences in predictive power as a results of missing imputation")
+
+```
+
+```{r}
+
+summary(diff_iv$diff)
+
+```
+
+
+```{r}
+
+table_iv$IV_Category<-ifelse(table_iv$IV_nomiss >= 
+0.3, "1:Strong", ifelse(table_iv$IV_nomiss >= 0.1,
+"2:Medium","3:Weak"))
+
+```
+
+```{r}
+
+table(table_iv$IV_Category)
+
+```
+
+
+```{r}
+
+table_iv<-table_iv[complete.cases(table_iv) & table_iv$IV_Category != "3:Weak",]
+
+```
+
+
+```{r}
+
+train<-train_nomiss
+
+test<-test_nomiss
+
+```
+
+
+```{r}
+
+train$Defaultf<-as.numeric(as.character(train$Default))
+train$Defaultf<-ifelse(train$Default==1,0,1)
+
+test$Defaultf<-as.numeric(as.character(test$Default))
+test$Defaultf<-ifelse(test$Default==1,0,1)
+
+```
+
+
+
+```{r}
+
+boxplot(train$UBPRD486~train$Default,
+        horizontal=T, frame=F, col="lightgray",main="Tier One Leverage Ratio Distribution")
+
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+
+result<-smbinning(df=train[,c("UBPRD486","Defaultf")],y="Defaultf",x="UBPRD486",p=0.05)
+
+```
+
+
+```{r}
+
+smbinning.plot(result,option="dist")
+
+```
+
+
+
+```{r}
+
+smbinning.plot(result,option="badrate")
+
+```
+
+
+
+```{r}
+
+smbinning.plot(result,option="WoE")
+
+```
+
+
+```{r}
+
+relevant_vars<-as.vector(table_iv$Char)
+
+relevant_vars<-c("ID_RSSD","Default","Defaultf", relevant_vars)
+
+train<-train[,relevant_vars]
+
+test<-test[,relevant_vars]
+
+```
+
+
+
+```{r}
+
+save.image("Data9.RData")
+
+```
+
+
+```{r}
+
+dim(train)
+
+```
+
+
+```{r}
+
+correlations <- cor(train[,4:ncol(train)])
+
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+
+library(caret)
+
+```
+
+
+```{r}
+
+highlyCorrelated <- data.frame("Char"=findCorrelation(correlations, cutoff=0.75,names = TRUE))
+
+```
+
+
+```{r}
+
+correlated_vars<-as.vector(highlyCorrelated$Char)
+
+non_correlated_vars<-!(colnames(train) %in% correlated_vars)
+
+train<-train[,non_correlated_vars]
+
+test<-test[,non_correlated_vars]
+
+```
+
+
+```{r}
+
+ncol(train)
+
+```
+
+
+```{r}
+
+set.seed(123)
+
+```
+
+
+```{r}
+
+aux<-train
+
+aux$`ID_RSSD`<-NULL
+
+aux$Defaultf<-NULL
+
+```
+
+
+```{r warning=FALSE}
+
+library(Boruta)
+
+```
+
+
+```{r warning=FALSE}
+
+wrapper <- Boruta(Default ~. , data = aux, doTrace = 2,maxRuns = 100)
+
+```
+
+
+
+```{r}
+
+print(wrapper)
+
+```
+
+
+```{r}
+
+table(wrapper$finalDecision)
+
+```
+
+```{r}
+
+save.image("Data10.RData")
+
+```
+
+```{r}
+
+wrapper <- TentativeRoughFix(wrapper)
+
+print(wrapper)
+
+```
+
+
+
+```{r warning=FALSE}
+
+library(caret)
+
+set.seed(1234)
+
+```
+
+
+```{r}
+
+aux$Default<-as.factor(aux$Default)
+
+```
+
+
+```{r}
+
+rfe_control <- rfeControl(functions=rfFuncs, method='cv', number=10)
+
+recursive <- rfe(aux[,2:260], aux[,1], rfeControl=rfe_control)
+
+```
+
+
+
+```{r}
+
+print(recursive, top=10)
+
+```
+
+```{r}
+
+plot(recursive, type=c("g", "o"), cex = 1.0)
+
+predictors(recursive)
+
+head(recursive$resample, 10)
+
+```
+
+
+
+```{r}
+
+predictors<-data.frame("decision"=wrapper$finalDecision)
+
+predictors<-cbind("variable"=row.names(predictors),predictors)
+
+predictors<-as.vector(predictors[predictors$decision=="Confirmed","variable"])
+
+train<-train[,c('ID_RSSD','Default',predictors)]
+
+test<-test[,c('ID_RSSD','Default',predictors)]
+
+```
+
+
+```{r}
+
+ncol(train)
+
+```
+
+
+```{r}
+
+save.image("Data11.RData")
+```
+
+
+
+```{r}
+
+pca <- prcomp(train[,3:ncol(train)], retx=TRUE, center=TRUE, scale=TRUE)
+
+```
+
+
+
+```{r}
+
+names(pca)
+
+```
+
+
+```{r}
+
+pca$rotation[1:10,1:4]
+
+```
+
+
+```{r}
+
+pca_variances =pca$sdev^2
+
+```
+
+
+
+```{r}
+
+prop_var_explained <- pca_variances/sum(pca_variances)
+
+head(prop_var_explained,10)
+
+```
+
+
+```{r}
+
+plot(pca, type = "l",main = " Variance of Principal components")
+
+```
+
+```{r}
+
+plot(prop_var_explained, xlab = "Principal Component",
+             ylab = "Proportion of Variance Explained",
+             type = "b")
+
+```
+
+
+```{r}
+
+plot(cumsum(prop_var_explained), xlab = "Principal Component",
+ylab = "Cumulative Proportion of Variance Explained",
+type = "b")
+
+```
+
+
+
+```{r}
+
+library(ggfortify)
+
+train$Default<-as.factor(train$Default)
+autoplot(pca, data = train, colour = 'Default')
+
+```
+
+
+
+```{r}
+
+set.seed(1234)
+
+```
+
+
+
+
+```{r}
+library(Rtsne)
+
+tsne= Rtsne(as.matrix(train[,3:ncol(train)]), check_duplicates=TRUE, pca=TRUE, perplexity=75, theta=0.5, dims=2,max_iter = 2000,verbose=TRUE)
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+
+tsne_vectors = as.data.frame(tsne$Y)
+
+head(tsne_vectors)
+
+```
+
+
+
+```{r}
+
+ggplot(tsne_vectors, aes(x=V1, y=V2)) +
+  geom_point(size=0.25) +
+  guides(colour=guide_legend(override.aes=list(size=6))) +
+  xlab("") + ylab("") +
+  ggtitle("t-SNE") +
+  theme_light(base_size=20) +
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank()) +
+  scale_colour_brewer(palette = "Set2")
+
+```
+
+
+```{r}
+
+plot(tsne$Y, t='n', main="tsne",xlab="Vector X",ylab="Vector y")
+text(tsne$Y, labels=as.vector(train$Default), col=c('red', 'blue')[as.numeric(train$Default)])
+
+```
+
+
+
+```{r}
+
+rm(list=setdiff(ls(), c("Model_database","train","test","table_iv")))
+
+save.image("~/Data12.RData")
+
+```
+
+
+

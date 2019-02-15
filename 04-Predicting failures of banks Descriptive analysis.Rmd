@@ -1,0 +1,421 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+
+
+
+
+```{r}
+
+class(Model_database$ID_RSSD)
+
+```
+
+
+```{r}
+
+classes<-as.data.frame(sapply(Model_database, class))
+
+classes<-cbind(colnames(Model_database),classes)
+
+colnames(classes)<-c("variable","class")
+
+```
+
+
+```{r}
+
+head(classes)
+
+```
+
+
+```{r}
+
+table(classes$class)
+
+```
+
+
+```{r}
+
+classes<-classes[classes$class=="character",]
+
+head(classes)
+
+```
+
+
+```{r}
+
+aggregate(UBPRE543 ~ Date, data=Model_database, function(x) {sum(is.na(x))}, na.action = NULL)
+
+```
+
+
+```{r}
+
+table(Model_database$Date)
+
+```
+
+
+```{r}
+
+#database<-rbind(year2002,year2003,year2004,year2005,year2006,year2007,year2008, year2009,year2010,year2011,year2012,year2013,year2014,year2015,year2016)
+
+```
+
+
+
+```{r results='hide', message=FALSE, warning=FALSE}
+
+for (k in 2:(ncol(Model_database)-2)) {
+  
+  
+  Model_database[,k]<-as.numeric(Model_database[,k])
+  
+}
+
+```
+
+
+
+```{r}
+
+table(sapply(Model_database, class))
+
+```
+
+
+
+```{r}
+
+set.seed(1234)
+
+```
+
+
+
+```{r}
+
+library(caTools)
+
+index = sample.split(Model_database$Default, SplitRatio = .70)
+
+```
+
+
+
+```{r}
+
+train<-subset(Model_database, index == TRUE)
+
+test<-subset(Model_database, index == FALSE)
+
+```
+
+
+
+```{r}
+
+print("The development sample contains the following number of observations:")
+nrow(train)
+
+print("The average number of failed banks in the sample is:")
+(sum(train$Default)/nrow(train))
+
+```
+
+
+
+```{r}
+
+print("The validation sample contains the following number of observations:")
+nrow(test)
+
+print("The average number of failed banks in the sample is:")
+(sum(test$Default)/nrow(test))
+ 
+```
+
+
+```{r}
+
+Class<-as.data.frame(sapply(train, class))
+
+colnames(Class)<-"variable_class"
+
+Class$variable_name<-colnames(train)
+
+numeric_vars<-Class[Class$variable_class=="numeric","variable_name"]
+
+```
+
+
+
+```{r results='hide', message=FALSE, warning=FALSE}
+
+library(fBasics)
+
+descriptives_num<-as.data.frame(t(basicStats(train[,numeric_vars])))
+
+head(descriptives_num)
+
+```
+
+
+
+```{r}
+
+library(DataExplorer)
+
+plot_histogram(train[,1410:1441])
+
+```
+
+
+
+```{r}
+
+head(colnames(train))
+
+``` 
+
+```{r}
+
+tail(colnames(train))
+
+``` 
+
+
+
+```{r results='hide', message=FALSE, warning=FALSE}
+
+for (k in 2:(ncol(train)-2)){
+
+  variable<-as.character(colnames(train)[k])
+
+  limits <- quantile(train[,k], probs=c(.01, .99), na.rm = TRUE)
+  
+  train[complete.cases(train[,k]) & train[,k] <         as.numeric(limits[1]),k] <-      as.numeric(limits[1])
+
+  train[complete.cases(train[,k]) & train[,k] > as.numeric(limits[2]),k] <-      as.numeric(limits[2])
+
+
+test[complete.cases(test[,k]) & test[,k] < as.numeric(limits[1]),k]    <- as.numeric(limits[1])
+  
+test[complete.cases(test[,k]) & test[,k] > as.numeric(limits[2]),k] <-as.numeric(limits[2])
+
+}
+
+```
+
+
+
+```{r results='hide', message=FALSE, warning=FALSE}
+
+library(dplyr)
+
+unique_values<-as.data.frame(sapply(train, n_distinct))
+
+```
+
+
+
+```{r}
+
+colnames(unique_values)<-"Unique_values"
+
+```
+
+
+
+```{r}
+
+unique_values$variable_name<-colnames(train)
+
+```
+
+
+```{r}
+
+variables_to_remove<-unique_values[unique_values$Unique_values==1,"variable_name"]
+
+length(variables_to_remove)
+
+```
+
+
+```{r}
+
+train<-train[, !colnames(train) %in% variables_to_remove]
+
+test<-test[, !colnames(test) %in% variables_to_remove]
+
+```
+
+
+```{r}
+
+save.image("Data6.RData")
+
+```
+
+ 
+
+```{r}
+
+plot_missing(train[,c(6:8,1000:1020)]) 
+
+```
+
+
+
+```{r}
+
+ncol=rep(nrow(train) ,each=ncol(train))
+
+missingdata=as.data.frame(cbind(colnames=names(train),ncol,nmsg=as.integer(as.character(as.vector(apply(train, 2, function(x) length(which(is.na(x)))))))))
+
+missingdata$nmsg=as.numeric(levels(missingdata$nmsg))[missingdata$nmsg]
+
+missingdata=cbind(missingdata,percmissing=(missingdata$nmsg/ncol*100))
+
+```
+
+```{r}
+
+head(missingdata)
+
+```
+
+
+```{r}
+
+print(missingdata[missingdata$percmissing>=99,])
+
+```
+
+
+```{r}
+
+print(missingdata[missingdata$percmissing==100,])
+
+```
+
+
+```{r}
+
+train$missingvalues<-rowSums(is.na(train[,2:1410]))/1409
+
+```
+
+
+
+```{r}
+
+hist(train$missingvalues,main="Distribution of missing values",xlab="Percentage of missing values",border="blue", col="red",breaks=25)
+
+```
+
+
+```{r}
+
+summary(train$missingvalues)
+
+```
+
+
+```{r}
+
+train$missingvalues<-NULL
+
+```
+
+
+```{r results='hide', message=FALSE, warning=FALSE}
+
+library(Amelia)
+
+```
+
+
+```{r}
+
+missmap(train[,5:35], main = "Missing values vs observed",col=c("black", "grey"),,legend = FALSE)
+
+```
+
+ 
+
+
+```{r}
+
+missingdata[missingdata$colnames=="UBPRE628",]
+
+```
+
+ 
+
+```{r}
+
+missing_analysis<-train[,c("UBPRE628","Default")] 
+
+```
+  
+
+```{r}
+
+missing_analysis$is_miss<-ifelse(is.na(missing_analysis$UBPRE628),"missing_ratio","complete_ratio")
+
+```
+
+
+```{r}
+
+aggregate(missing_analysis$Default, by = list(missing_analysis$is_miss), sum)
+
+```
+
+
+```{r}
+
+train_nomiss<-train
+test_nomiss<-test
+
+for(i in 2:(ncol(train_nomiss)-2)){
+  train_nomiss[is.na(train_nomiss[,i]), i] <- mean(train_nomiss[,i], na.rm = TRUE)
+  test_nomiss[is.na(test_nomiss[,i]), i] <- mean(train_nomiss[,i], na.rm = TRUE)  
+  
+}
+
+```
+
+
+
+```{r}
+
+missmap(train_nomiss[,2:(ncol(train_nomiss)-2)], main = "Missing values vs observed",col=c("black", "grey"),,legend = FALSE)
+
+```
+
+```{r}
+
+missmap(test_nomiss[,2:(ncol(train_nomiss)-2)], main = "Missing values vs observed",col=c("black", "grey"),,legend = FALSE)
+
+```
+
+
+```{r}
+
+rm(list=setdiff(ls(), c("Model_database","train","test","train_nomiss","test_nomiss")))
+
+save.image("Data7.RData")
+
+```
+
+
+
