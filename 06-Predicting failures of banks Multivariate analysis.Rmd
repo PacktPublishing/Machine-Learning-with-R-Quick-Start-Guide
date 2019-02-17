@@ -1,0 +1,966 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+
+
+
+
+```{r}
+set.seed(1234)
+
+LogisticRegression=glm(train$Default~.,data=train[,2:ncol(train)],family=binomial())
+
+```
+
+
+```{r}
+
+summary(LogisticRegression)
+
+```
+
+
+
+```{r echo=FALSE,warning=FALSE}
+
+library(h2o)
+
+```
+
+
+
+```{r echo=FALSE,warning=FALSE}
+
+h2o.init()
+
+```
+
+
+
+```{r}
+
+train$Default<-as.factor(train$Default)
+
+test$Default<-as.factor(test$Default)
+
+```
+
+
+```{r echo=FALSE}
+
+as.h2o(train[,2:ncol(train)],destination_frame="train")
+
+as.h2o(test[,2:ncol(test)],destination_frame="test")
+
+```
+
+
+```{r}
+
+h2o.ls()
+
+```
+
+
+
+
+```{r}
+
+h2o.removeAll()
+
+```
+
+
+
+```{r echo=FALSE}
+
+training<-as.h2o(train[,2:ncol(train)],destination_frame="train")
+
+validation<-as.h2o(test[,2:ncol(test)],destination_frame="test")
+
+```
+
+```{r}
+
+grid_id <- 'glm_grid'
+
+```
+
+
+
+```{r}
+
+hyper_parameters <- list( alpha = c(0, .5, 1) )
+
+stopping_metric <- 'auc'
+
+glm_grid <- h2o.grid(
+    algorithm = "glm", 
+    grid_id = grid_id,
+    hyper_params = hyper_parameters,
+    training_frame = training, 
+    nfolds=5,
+    x=2:110,
+    y=1,
+    lambda_search = TRUE,
+    family = "binomial", seed=1234
+)
+
+```
+
+
+```{r}
+
+results_glm <- h2o.getGrid(
+    grid_id = grid_id, 
+    sort_by = stopping_metric,
+    decreasing = TRUE
+)
+
+```
+
+
+```{r}
+
+best_GLM <- h2o.getModel(results_glm@model_ids[[1]])
+
+```
+
+
+
+```{r}
+
+best_GLM@model$model_summary$regularization
+
+```
+
+
+```{r}
+
+perf_train<-h2o.performance(model = best_GLM,newdata = training)
+
+perf_train
+
+```
+
+
+```{r}
+
+perf_test<-h2o.performance(model = best_GLM,newdata = as.h2o(test))
+
+perf_test
+
+```
+
+
+```{r}
+
+head(best_GLM@model$coefficients)
+
+```
+
+
+```{r}
+
+summary_models_train<-train[,c("ID_RSSD","Default")]
+
+summary_models_test<-test[,c("ID_RSSD","Default")]
+
+```
+
+
+```{r}
+
+summary_models_train$GLM<-as.vector(h2o.predict(best_GLM,training)[3])
+
+summary_models_test$GLM<- as.vector(h2o.predict(best_GLM,validation)[3])
+
+```
+
+
+
+```{r}
+
+perf_test@metrics$cm$table
+
+```
+
+
+```{r}
+
+mean(as.numeric(as.character(train$Default)))
+
+```
+
+
+```{r}
+
+aux<-summary_models_test
+
+aux$pred<-ifelse(summary_models_test$GLM>0.04696094,1,0)
+
+```
+
+
+
+```{r}
+
+table(aux$Default,aux$pred)
+
+```
+
+
+```{r}
+
+h2o.saveModel(object= best_GLM, path=getwd(), force=TRUE)
+
+```
+
+
+```{r}
+
+rm(list=setdiff(ls(), c("Model_database","train","test","summary_models_train","summary_models_test","training","validation")))
+
+save.image("Data13.RData")
+
+```
+
+
+```{r}
+
+grid_space <- list()
+grid_space$ntrees <- c(25, 50, 75)
+grid_space$max_depth <- c(4, 10, 20)
+grid_space$mtries <- c(10, 14, 20)
+grid_space$seed <- c(1234)
+
+grid <- h2o.grid("randomForest", grid_id="RF_grid", x=2:110,y=1,training_frame=training, nfolds=5, hyper_params=grid_space)
+
+results_grid <- h2o.getGrid(grid_id = "RF_grid",
+                             sort_by = "auc",
+                             decreasing = TRUE)
+
+```
+
+```{r}
+
+print(results_grid)
+
+```
+
+
+
+```{r}
+
+best_RF <- h2o.getModel(results_grid@model_ids[[1]])
+
+```
+
+
+
+```{r}
+
+h2o.performance(model = best_RF,newdata = training)
+
+```
+
+
+```{r}
+
+h2o.performance(model = best_RF,newdata = validation)
+
+```
+
+
+```{r}
+
+var_importance<-data.frame(best_RF@model$variable_importances)
+h2o.varimp_plot(best_RF,20)
+
+```
+
+
+```{r}
+
+summary_models_train$RF<-as.vector(h2o.predict(best_RF,training)[3])
+
+summary_models_test$RF<-as.vector(h2o.predict(best_RF,validation)[3])
+
+```
+
+
+
+```{r}
+
+aux<-summary_models_test
+aux$pred<-ifelse(summary_models_test$RF>0.04696094,1,0)
+table(aux$Default,aux$pred)
+
+```
+
+
+```{r}
+
+rm(list=setdiff(ls(), c("Model_database","train","test","summary_models_train","summary_models_test","training","validation")))
+
+save.image("Data14.RData")
+
+```
+
+
+
+```{r}
+
+grid_space <- list()
+grid_space$ntrees <- c(25,75,100)
+grid_space$max_depth = c(4,6,8,12,16,20)
+
+```
+
+
+
+```{r}
+
+gbm_grid <- h2o.grid(hyper_params = grid_space,
+  algorithm = "gbm",
+  grid_id ="Grid1", 
+  x=2:110,
+  y=1,
+  training_frame = training,seed=1234
+)
+
+
+```
+
+
+
+```{r}
+
+results_gbm <- h2o.getGrid("Grid1", sort_by = "AUC", decreasing = TRUE)    
+
+results_gbm
+
+```
+
+
+
+```{r}
+
+best_GBM <- h2o.getModel(results_gbm@model_ids[[1]])
+
+h2o.performance(model = best_GBM,newdata = as.h2o(test))
+
+```
+
+
+
+```{r}
+
+summary_models_train$GBM<-as.vector(h2o.predict(best_GBM,training)[3])
+
+summary_models_test$GBM<-as.vector(h2o.predict(best_GBM,validation)[3])
+
+```
+
+
+```{r}
+
+aux<-summary_models_test
+
+aux$pred<-ifelse(summary_models_test$GBM>0.04696094,1,0)
+
+table(aux$Default,aux$pred)
+
+```
+
+
+
+```{r}
+
+rm(list=setdiff(ls(), c("Model_database","train","test","summary_models_train","summary_models_test","training","validation")))
+
+save.image("Data15.RData")
+
+```
+
+
+
+```{r}
+
+hyper_params <- list(
+  hidden=list(c(5),c(80,80,80),c(75,75)),
+  input_dropout_ratio=c(0.05,0.1,0.15,0.2,0.25),
+  rate=c(0.01,0.02,0.10)
+)
+
+```
+
+
+
+```{r}
+
+deep_grid <- h2o.grid(
+  algorithm="deeplearning",
+  grid_id="dl_grid", 
+  training_frame=training,
+  validation_frame=as.h2o(test),
+  x=2:110,
+  y=1,
+  epochs=2,
+  stopping_metric="AUC",
+  stopping_tolerance=1e-2,
+  stopping_rounds=2,
+  score_duty_cycle=0.01,  
+  l1=1e-5,
+  l2=1e-5,
+  activation=c("Rectifier"),
+  nfolds=5,
+  hyper_params=hyper_params,standardize=TRUE,seed=1234)
+
+```
+
+
+
+```{r}
+
+results_deep <- h2o.getGrid("dl_grid",sort_by="auc",decreasing=TRUE)
+
+results_deep
+
+```
+
+
+
+```{r}
+
+best_deep <- h2o.getModel(results_deep@model_ids[[1]])
+
+```
+
+
+```{r}
+
+h2o.performance(model = best_deep,newdata = validation) 
+
+```
+
+
+
+```{r}
+
+summary_models_train$deep<-as.vector(h2o.predict(best_deep,training)[3])
+
+summary_models_test$deep<- as.vector(h2o.predict(best_deep,validation)[3])
+```
+
+
+
+```{r}
+
+aux<-summary_models_test
+aux$pred<-ifelse(summary_models_test$deep>0.04696094,1,0)
+table(aux$Default,aux$pred)
+
+```
+
+```{r}
+
+rm(list=setdiff(ls(), c("Model_database","train","test","summary_models_train","summary_models_test","training","validation")))
+
+save.image("Data16.RData")
+
+```
+
+
+
+```{r}
+
+levels(train$Default)
+
+
+```
+
+
+```{r}
+
+levels(train$Default) <- make.names(levels(factor(train$Default)))
+
+levels(train$Default)
+
+```
+
+
+
+```{r}
+
+test$Default<-as.factor(test$Default)
+
+levels(test$Default) <- make.names(levels(factor(test$Default)))
+
+levels(test$Default)
+```
+
+
+```{r}
+
+svmGrid <- expand.grid(sigma= 2^c(-20, -15,-10, -5, 0), C= 2^c(2:5))
+
+print(svmGrid)
+
+```
+
+
+```{r warning=FALSE,cache=FALSE}
+library(caret)
+
+set.seed(1234)
+
+SVM <- train(Default ~ ., data = train[,2:ncol(train)], 
+method = "svmRadial",
+standardize=TRUE,
+tuneGrid = svmGrid,
+metric = "ROC",
+allowParallel=TRUE,
+trControl = trainControl(method = "cv", 5,                        classProbs = TRUE, 
+summaryFunction=twoClassSummary))
+
+
+```
+
+
+
+
+```{r}
+
+print(SVM)
+
+```
+
+
+```{r}
+
+plot(SVM)
+
+```
+
+
+```{r}
+
+SVM$bestTune
+
+```
+
+
+ 
+```{r}
+
+SVM$finalModel
+
+```
+
+
+
+```{r warning=FALSE,}
+
+library(ROCR)
+
+SVM_pred<-as.numeric(unlist(predict(SVM, newdata =test, type = "prob")[2]))
+
+pred2 <- prediction(SVM_pred,test$Default)
+
+pred3 <- performance(pred2,"tpr","fpr")
+#ROC
+
+plot(pred3, lwd=1, colorize=FALSE, main="ROC SVM training sample")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3); 
+
+```
+
+
+
+```{r warning=FALSE, message=FALSE}
+
+library(Hmisc)
+
+```
+
+
+```{r}
+
+print("Gini indicator of SVM in the test sample is:")
+
+print(abs(as.numeric(2*rcorr.cens(SVM_pred,test[,'Default'])[1]-1)))
+```
+
+
+
+```{r}
+
+summary_models_train$SVM<-as.numeric(unlist(predict(SVM, newdata =train, type = "prob")[2]))
+
+summary_models_test$SVM<- as.numeric(unlist(predict(SVM, newdata =test, type = "prob")[2]))
+
+
+```
+
+
+```{r}
+
+aux<-summary_models_test
+aux$pred<-ifelse(summary_models_test$SVM>0.04696094,1,0)
+table(aux$Default,aux$pred)
+
+```
+
+
+```{r}
+
+rm(list=setdiff(ls(), c("Model_database","train","test","summary_models_train","summary_models_test","train_woe","test_woe")))
+
+save.image("~/Data17.RData")
+
+```
+
+
+
+```{r}
+
+head(summary_models_train)
+
+```
+
+ 
+
+```{r}
+
+gini_models<-as.data.frame(names(summary_models_train[,3:ncol(summary_models_train)]))
+
+colnames(gini_models)<-"Char"
+
+for (i in 3:ncol(summary_models_train)){
+
+  gini_models$Gini_train[i-2]<-(abs(as.numeric(2*rcorr.cens(summary_models_train[,i],summary_models_train$Default)[1]-1)))
+
+  gini_models$Gini_test[i-2]<-(abs(as.numeric(2*rcorr.cens(summary_models_test[,i],summary_models_test$Default)[1]-1)))
+
+  }
+
+```
+
+
+
+```{r}
+
+gini_models$var_train_test<-(gini_models$Gini_train-gini_models$Gini_test)/gini_models$Gini_train
+
+print(gini_models)
+
+```
+
+
+```{r}
+
+decisions_train <- summary_models_train
+
+decisions_test <- summary_models_test
+
+```
+
+
+
+```{r}
+
+for (m in 3:ncol(decisions_train)){
+  
+  decisions_train[,m]<-ifelse(decisions_train[,m]>0.04696094,1,0)
+  
+  decisions_test[,m]<-ifelse(decisions_test[,m]>0.04696094,1,0)
+  
+}
+
+```
+
+
+```{r}
+
+accuracy_function <- function(dataframe, observed, predicted){
+  
+  bads<-sum(as.numeric(as.character(dataframe[,observed])))
+  goods<-nrow(dataframe)-bads
+  y <- as.vector(table(dataframe[,predicted], dataframe[,observed]))
+  names(y) <- c("TN", "FP", "FN", "TP")
+  #y["TN"]<-as.numeric(y["TN"]) / goods
+  #y["FP"]<-as.numeric(y["FP"]) / goods
+  #y["FN"]<-as.numeric(y["FN"]) / bads
+  #y["TP"]<-as.numeric(y["TP"]) / bads
+  return(y)
+}
+
+```
+
+
+
+```{r}
+
+print("Accuracy GLM model:")
+accuracy_function(decisions_train,"Default","GLM")
+
+print("Accuracy RF model:")
+accuracy_function(decisions_train,"Default","RF")
+
+print("Accuracy GBM model:")
+accuracy_function(decisions_train,"Default","GBM")
+
+print("Accuracy deep model:")
+accuracy_function(decisions_train,"Default","deep")
+
+print("Accuracy SVM model:")
+accuracy_function(decisions_train,"Default","SVM")
+
+```
+
+
+```{r}
+
+print("Accuracy GLM model:")
+accuracy_function(decisions_test,"Default","GLM")
+
+print("Accuracy RF model:")
+accuracy_function(decisions_test,"Default","RF")
+
+print("Accuracy GBM model:")
+accuracy_function(decisions_test,"Default","GBM")
+
+print("Accuracy deep model:")
+accuracy_function(decisions_test,"Default","deep")
+
+print("Accuracy SVM model:")
+accuracy_function(decisions_test,"Default","SVM")
+
+```
+
+
+```{r}
+
+correlations<-cor(summary_models_train[,3:ncol(summary_models_train)], use="pairwise", method="pearson")
+
+print(correlations)
+
+```
+
+
+```{r}
+
+summary_models_test$avg<-(summary_models_test$GLM + summary_models_test$RF + summary_models_test$GBM + summary_models_test$deep + summary_models_test$SVM)/5
+
+```
+
+
+```{r}
+
+abs(as.numeric(2*rcorr.cens(summary_models_test[,"avg"],summary_models_test$Default)[1]-1))
+
+```
+
+
+
+```{r}
+
+aux<-summary_models_test
+
+aux$pred<-ifelse(summary_models_test$avg>0.04696094,1,0)
+
+table(aux$Default,aux$pred)
+```
+
+
+
+```{r}
+
+decisions_test$votes<-rowSums(decisions_test[,3:7])
+
+decisions_test$majority_vote<-ifelse(decisions_test$votes>2,1,0) 
+
+table(decisions_test$Default,decisions_test$majority_vote)
+
+```
+
+
+
+```{r}
+
+rm(list=setdiff(ls(), c("Model_database","train","test","summary_models_train","summary_models_test","train_woe","test_woe","decisions_train","decisions_test")))
+
+save.image("~/Data18.RData")
+
+rm(list=ls())
+```
+
+
+
+```{r}
+
+load("~/Data12.RData")
+
+```
+
+
+
+```{r}
+
+library(h2o)
+
+h2o.init()
+
+#h2o.no_progress()
+
+h2o.removeAll()
+
+```
+
+
+```{r}
+
+library(caret)
+
+features <- setdiff(names(train), c("ID_RSSD","Default"))
+
+```
+
+
+
+```{r}
+
+pre_process <- preProcess(x = train[, features], 
+               method = c( "center", "scale"))
+
+
+```
+
+
+```{r}
+
+# apply to both training & test
+train <- cbind(train[,"Default"],predict(pre_process, train[, features]))
+
+test <- cbind(test[,"Default"],predict(pre_process, test[, features]))
+
+colnames(train)[1]<-"Default"
+colnames(test)[1]<-"Default"
+
+```
+
+
+
+```{r}
+
+train <- as.h2o(train)
+
+test <- as.h2o(test)
+
+
+```
+
+
+```{r}
+
+y <- "Default"
+
+x <- setdiff(names(train), y)
+
+```
+
+
+
+```{r}
+
+AML_models <- h2o.automl(y = y, x = x,
+                  training_frame = train,
+                  max_models = 10,stopping_metric ="AUC",
+                  seed = 1234,sort_metric ="AUC")
+
+```
+
+
+
+```{r}
+
+Leaderboard <- AML_models@leaderboard
+
+```
+
+
+```{r}
+
+print(Leaderboard)
+
+```
+
+
+```{r}
+
+leader_model <- AML_models@leader
+
+```
+
+
+```{r}
+
+print(leader_model)
+
+```
+
+
+```{r}
+
+length(leader_model@parameters$base_models)
+
+```
+
+```{r}
+
+leader_model@parameters$base_models[[1]]$name
+leader_model@parameters$base_models[[2]]$name
+leader_model@parameters$base_models[[3]]$name
+leader_model@parameters$base_models[[4]]$name
+leader_model@parameters$base_models[[5]]$name
+
+```
+
+
+
+```{r}
+
+pred_test <- as.data.frame(h2o.predict(object = leader_model, newdata = test))
+
+head(pred_test)
+
+```
+
+
+```{r}
+
+pred_test$predict<-ifelse(pred_test$p1>0.04696094,1,0)
+
+```
+
+
+```{r}
+
+pred_test<-cbind(as.data.frame(test[,"Default"]),pred_test)
+
+table(pred_test$Default,pred_test$predict)
+
+```
+
+
+
+```{r eval=FALSE}
+
+h2o.saveModel(leader_model, path = "AML_model")
+
+```
+
+
