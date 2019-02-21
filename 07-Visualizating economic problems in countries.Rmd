@@ -1,0 +1,461 @@
+---
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+
+
+```{r}
+
+library(wbstats)
+
+```
+
+```{r}
+
+str(wb_cachelist, max.level = 1)
+
+```
+
+
+
+```{r}
+
+new_cache <- wbcache()
+
+gdp_vars <- wbsearch(pattern = "gdp")
+
+print(gdp_vars[1:5,])
+
+```
+
+
+
+```{r}
+
+stock_return <- wb(indicator = "GFDD.OM.02", startdate = 2000, enddate = 2017)
+
+head(stock_return)
+
+```
+
+ 
+
+
+```{r}
+
+population_stock <- wb(country = c("ES","US"),indicator = c("SP.POP.TOTL","GFDD.OM.02"), startdate = 2015, enddate = 2017)
+
+head(population_stock)
+
+
+```
+
+
+```{r}
+
+population_stock <- wb(country = c("ES","US"),
+
+indicator = c("SP.POP.TOTL","GFDD.OM.02"), startdate = 2015, enddate =2017,return_wide = TRUE)
+
+head(population_stock)
+
+
+```
+ 
+
+ 
+```{r}
+
+wb(country = c("US"),indicator = "GFDD.OM.02", mrv=10,return_wide = TRUE)
+
+
+```
+ 
+
+
+```{r}
+
+library(ggplot2)
+
+```
+
+
+```{r}
+
+military_exp <- wb(country = c("US"),indicator = "MS.MIL.XPND.GD.ZS", POSIXct = TRUE)
+
+ggplot() + theme_bw() +
+  geom_line(aes(y = value, x = date_ct), size=1.5, data = military_exp,
+            stat="identity") +
+  theme(legend.position="bottom", legend.direction="horizontal",
+        legend.title = element_blank())  +
+  labs(x="Year", y="Expenses as %GDP") +
+  ggtitle("US Military expenses %GDP")
+
+```
+ 
+
+
+```{r}
+
+countries<-wb_cachelist$countries
+
+head(countries,20)
+
+```
+
+
+
+```{r}
+
+indicators<-wb_cachelist$indicators
+
+head(indicators)
+
+```
+
+
+
+```{r}
+
+relevant_indicators<-c('NYGDPMKTPKDZ','FB.BNK.CAPA.ZS','GFDD.OI.01','GFDD.EI.07','GFDD.SI.04','GFDD.OI.02','GFDD.EI.02','FD.RES.LIQU.AS.ZS','FB.AST.NPER.ZS','GFDD.SI.05','GFDD.EI.05','GFDD.EI.09','GFDD.EI.06','GFDD.EI.10','GFDD.SI.01','FM.LBL.BMNY.GD.ZS','FM.LBL.BMNY.ZG','FS.AST.CGOV.GD.ZS','CC.EST','GFDD.EI.08','BN.CAB.XOKA.GD.ZS','IC.CRD.INFO.XQ','FS.AST.DOMS.GD.ZS','NE.EXP.GNFS.KD.ZG','NE.RSB.GNFS.ZS','GFDD.DI.08','NY.GDP.MKTP.KD.ZG','NY.GDP.PCAP.CD','NY.GDP.PCAP.KD.ZG','NE.CON.GOVT.ZS','NE.CON.GOVT.KD.ZG','GE.EST','NY.GDS.TOTL.ZS','NE.GDI.FTOT.ZS','NE.GDI.FTOT.KD.ZG','NE.CON.PRVT.KD.ZG','NE.CON.PRVT.PC.KD.ZG','NE.IMP.GNFS.KD.ZG','NV.IND.TOTL.ZS','NV.IND.TOTL.KD.ZG','FP.CPI.TOTL.ZG','FR.INR.LNDP','CM.MKT.LCAP.GD.ZS','PV.EST','SP.POP.GROW','GFDD.SI.07','REER','RQ.EST','RL.EST','NV.SRV.TETC.ZS','NV.SRV.TETC.KD.ZG','DT.DOD.DSTC.ZS','DT.DOD.DSTC.IR.ZS','GFDD.OM.02','IC.LGL.CRED.XQ','TOTRESV','SL.UEM.TOTL.ZS','SL.UEM.1524.ZS','VA.EST','SP.POP.TOTL')
+
+```
+
+```{r}
+
+indicators<-indicators[indicators$indicatorID %in% relevant_indicators,]
+
+head(indicators[,c("indicatorID","indicator","indicatorDesc")])
+
+```
+
+
+
+```{r}
+
+macroeconomic_data<-wb(indicator = relevant_indicators,startdate = 2000, enddate = 2018,return_wide = TRUE,POSIXct = TRUE)
+
+```
+
+
+```{r}
+
+str(macroeconomic_data)
+
+```
+
+ 
+
+```{r}
+
+head(table(macroeconomic_data$country))
+
+```
+
+
+
+```{r}
+
+length(table(macroeconomic_data$country))
+
+```
+
+
+
+```{r}
+
+library(DataExplorer)
+
+```
+
+
+```{r}
+
+plot_missing(macroeconomic_data) 
+
+```
+
+ 
+
+
+```{r}
+
+rm(list=ls())
+
+```
+
+
+
+```{r}
+
+macroeconomic_data <- read.csv("SovereignData.csv",sep=";",header=TRUE,stringsAsFactors = FALSE,dec=",")
+
+```
+
+
+
+```{r}
+
+str(macroeconomic_data)
+
+```
+
+
+
+
+```{r}
+
+head(macroeconomic_data)
+
+```
+
+
+```{r}
+
+library(funModeling)
+library(DataExplorer)
+
+```
+
+
+```{r}
+
+info<-df_status(macroeconomic_data)
+
+```
+
+
+
+```{r}
+
+table(macroeconomic_data$Year)
+
+```
+
+
+
+```{r}
+
+unique(macroeconomic_data$CountryName)
+
+```
+
+
+
+```{r}
+
+unique(macroeconomic_data$RatingMayT1)
+
+```
+
+
+
+```{r}
+
+
+RatingSP <- c('AAA','AA+','AA','AA-','A+','A','A-','BBB+','BBB','BBB-','BB+','BB','BB-','B+','B','B-','CCC+','CCC','CCC-','CC','C','D','DD','SD')
+
+Rating_num <- c('6','5','5','5','4','4','4','3','3','3','2','2','2','1','1','1','1','1','1','1','1','1','1','1')
+
+mapping<-data.frame(RatingSP, Rating_num)
+
+rm(RatingSP,Rating_num)
+
+print(mapping)
+
+```
+
+
+
+```{r}
+
+tab<-table(macroeconomic_data$RatingMayT1)
+barplot(tab,
+main="Distribution of ratings (highest quality = 6 - worst =1)",
+xlab="Rating",ylab="Count",border="blue",col="blue")
+
+```
+
+
+```{r}
+
+ with(macroeconomic_data[macroeconomic_data$Year==2017,], table(CountryName,RatingMayT1))
+
+```
+
+
+
+```{r}
+
+macro2017<-macroeconomic_data[macroeconomic_data$Year==2017,]
+
+```
+
+```{r}
+
+library(rworldmap)
+
+```
+
+
+
+```{r}
+
+Map <- joinCountryData2Map(macro2017, joinCode = "ISO2",
+nameJoinColumn = "CountryISO")
+
+mapCountryData(Map, nameColumnToPlot="RatingMayT1", catMethod = "categorical", missingCountryCol = gray(.8), xlim = c(-20, 59),ylim = c(35, 71),asp = 1)
+
+```
+
+
+
+
+```{r}
+
+library(fBasics)
+library(DataExplorer)
+
+```
+
+
+
+```{r}
+
+descriptives_num<-as.data.frame(t(basicStats(macroeconomic_data[,4:13])))
+
+head(descriptives_num)
+
+
+```
+
+
+
+```{r}
+
+plot_histogram(macroeconomic_data[,4:13])
+
+```
+
+
+
+```{r}
+rm(list=setdiff(ls(), c("macroeconomic_data")))
+
+save.image("Backup1.RData")
+
+```
+
+
+
+```{r}
+
+library(kohonen)
+
+library(caret)
+
+```
+
+
+
+```{r}
+
+preprocess <- preProcess(macroeconomic_data[,4:13], method=c("center", "scale"))
+
+print(preprocess)
+
+```
+
+
+
+```{r}
+
+macroeconomic_data_trn <- cbind(macroeconomic_data[,c(1:3,14)],predict(preprocess,                        macroeconomic_data[,4:13]))
+
+```
+
+
+
+```{r}
+
+set.seed(1234)
+
+som_grid <- somgrid(xdim = 6, ydim=5, topo="hexagonal")  
+
+som_model <- som(as.matrix(macroeconomic_data_trn[,5:14]),grid=som_grid,rlen=800,alpha=c(0.1,0.01), keep.data = TRUE )
+
+```
+
+
+
+```{r}
+
+plot(som_model, type = "changes")
+
+```
+
+
+```{r}
+
+plot(som_model, type = "counts", main="Node Counts")
+
+```
+
+
+
+```{r}
+
+plot(som_model, type = "quality", main="Node Quality/Distance")
+
+```
+
+```{r}
+
+plot(som_model, type = "codes")
+
+```
+
+
+
+```{r}
+
+plot(som_model, type = "property", property = getCodes(som_model)[,'MEANWGI'], main="WorldBank Governance Indicators")
+
+
+```
+
+
+
+```{r}
+
+Labels<-macroeconomic_data_trn[,c("CountryName","Year")]
+Labels$CountryName<-ifelse(Labels$Year!=2017,"",as.character(Labels$CountryName))
+
+plot(som_model, type = "mapping",label=Labels$CountryName)
+
+```
+
+
+```{r}
+
+clusters <- cutree(hclust(dist(getCodes(som_model))), 5)
+					  
+plot(som_model, type="codes", bgcol = clusters, main = "Clusters")
+add.cluster.boundaries(som_model, clusters)
+
+```
+
+
+
+
+```{r}
+
+save.image("Backup2.RData")
+rm(list=setdiff(ls(), c("macroeconomic_data")))
+
+```
+

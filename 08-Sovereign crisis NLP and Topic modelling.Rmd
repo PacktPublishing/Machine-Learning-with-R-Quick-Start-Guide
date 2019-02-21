@@ -1,0 +1,1160 @@
+---
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+
+
+
+```{r}
+library(caTools)
+
+index = sample.split(macroeconomic_data$RatingMayT1, SplitRatio = .75)
+
+train_macro<-subset(macroeconomic_data, index == TRUE)
+test_macro<-subset(macroeconomic_data, index == FALSE)
+
+```
+
+
+
+```{r}
+
+print(paste("The number of observations in the train sample is: ",nrow(train_macro),sep=""))
+
+print(paste("The number of observations in the test sample is: ",nrow(test_macro),sep=""))
+```
+
+
+
+```{r}
+
+library(caret)
+
+```
+
+
+
+```{r}
+
+preprocess <- preProcess(train_macro[,4:13], method=c("center", "scale"))
+
+print(preprocess)
+
+```
+
+
+
+```{r}
+
+train_macro_trn <- cbind(train_macro[,c(1:3,14)],predict(preprocess, train_macro[,4:13]))
+
+```
+
+```{r}
+
+test_macro_trn <- cbind(test_macro[,c(1:3,14)],predict(preprocess, test_macro[,4:13]))
+
+```
+
+
+
+
+```{r}
+
+library(ggplot2)
+
+```
+
+
+```{r}
+
+
+variables<-colnames(train_macro_trn[,5:14])
+train_macro_trn$RatingMayT1<-as.factor(train_macro_trn$RatingMayT1)
+
+for (i in 5:14){
+
+library(ggplot2)
+theme_set(theme_classic())
+
+var<-colnames(train_macro_trn)[i]
+
+data_aux<-train_macro_trn[,c(var,"RatingMayT1")]
+colnames(data_aux)<-c("variable","RatingMayT1")
+
+g <- ggplot(data_aux, aes(RatingMayT1,variable))
+plot(g + geom_boxplot(varwidth=T, fill="plum") + 
+    labs(title="Box plot", 
+         subtitle=var,
+         x="Rating Number",
+         y=var))
+
+}
+
+
+```
+
+
+
+```{r}
+
+library(dplyr)
+
+```
+
+
+
+```{r}
+
+means_YPCA <- train_macro_trn %>% group_by(RatingMayT1) %>% 
+        summarise(YPCA = mean(YPCA))
+
+
+ggplot(train_macro_trn, aes(x = RatingMayT1, y = YPCA, color = RatingMayT1, fill = RatingMayT1)) +
+  geom_bar(data = means_YPCA, stat = "identity", alpha = .3) +
+  ggrepel::geom_text_repel(aes(label = CountryName), color = "black", size = 2.5, segment.color = "grey") +
+  geom_point() +
+  guides(color = "none", fill = "none") +
+  theme_bw() +
+  labs(
+    title = "GDP per capita by rating category",
+    x = "Rating",
+    y = "GDP per capita"
+  )
+```
+
+
+
+```{r}
+
+library(ggplot2)
+theme_set(theme_classic())
+
+
+ggplot(train_macro_trn, aes((MEANWGI))) + geom_density(aes(fill=factor(RatingMayT1)),alpha=0.8) + 
+    labs(title="Density plot", 
+         subtitle="Mean of the Worldwide Governance Indicators",
+         x=paste("MeanWGI",sep=''),
+         fill="RatingNum")
+
+ggplot(train_macro_trn, aes((CARA))) + geom_density(aes(fill=factor(RatingMayT1)),alpha=0.8) + 
+    labs(title="Density plot", 
+         subtitle="Current account balance/GDP",
+         x=paste("CARA",sep=''),
+         fill="RatingNum")
+
+         
+
+```
+
+
+
+```{r}
+colnames(train_macro_trn)
+
+variables<-colnames(train_macro_trn[,c(4:14)])
+
+```
+
+
+
+```{r}
+
+aux<-train_macro_trn
+aux$RatingMayT1<-as.numeric(as.character(aux$RatingMayT1))
+
+# Correlation matrix
+
+correlations<-cor(aux[, variables], use="pairwise", method="pearson")
+
+correlations_with_Rating<-as.matrix(correlations[1,])
+
+```
+
+```{r}
+
+print(correlations_with_Rating)
+
+```
+
+
+
+```{r}
+
+rm(list=setdiff(ls(), c("macroeconomic_data","train_macro","test_macro","correlations_with_Rating","train_macro_trn","test_macro_trn")))
+
+
+save.image("Backup3.RData")
+
+```
+
+
+
+```{r}
+
+library(rpart)
+library(rpart.plot)
+
+```
+
+
+
+```{r}
+
+variables<-names(train_macro_trn[,4:14])
+print(variables)
+
+```
+
+
+
+
+```{r}
+set.seed(1234)
+
+DT<-rpart(formula = RatingMayT1 ~ ., data = train_macro_trn[,c(variables)], control=rpart.control(maxdepth=5,cp=0.001))
+
+```
+
+
+
+```{r}
+
+#summary(DT) 
+
+```
+
+
+
+```{r}
+
+DT_pr_train <- data.frame(cbind(train_macro_trn$CountryName,train_macro_trn$Year,train_macro_trn$RatingMayT1,predict(DT, newdata=train_macro_trn, type="class")))
+colnames(DT_pr_train)<-c("Country","year","Observed","Predicted")
+
+DT_pr_test <- data.frame(cbind(test_macro_trn$CountryName,test_macro_trn$Year,test_macro_trn$RatingMayT1,predict(DT, newdata=test_macro_trn, type="class")))
+colnames(DT_pr_test)<-c("Country","year","Observed","Predicted")
+
+```
+
+
+
+```{r}
+
+table(DT_pr_train$Observed,DT_pr_train$Predicted)
+
+```
+
+
+
+```{r}
+
+table(DT_pr_test$Observed,DT_pr_test$Predicted)
+
+```
+
+
+
+```{r}
+
+model_assessment<-function(data,model){
+
+data$Observed<-as.numeric(as.character(data$Observed))
+data$Predicted<-as.numeric(as.character(data$Predicted))
+data$df<-abs(as.numeric(data$Predicted)-as.numeric(data$Observed))
+comparison<-as.data.frame(table(data$df))
+comparison$perc<-comparison$Freq/nrow(data)
+colnames(comparison)<-c("notche","N",paste("perc_",model,sep=''))
+comparison$N<-NULL
+comparison$cumulative<-cumsum(comparison[,ncol(comparison)]) 
+return(comparison)
+}
+
+```
+
+
+
+
+```{r}
+
+model_assessment(DT_pr_train,"DT")
+
+```
+
+
+
+```{r}
+
+model_assessment(DT_pr_test,"DT")
+
+```
+
+
+
+```{r}
+
+prp(DT)
+
+```
+
+
+```{r}
+
+save.image("Backup4.RData")
+
+```
+
+
+
+```{r}
+
+library(MASS)
+
+```
+
+
+```{r}
+
+ordered_logistic <- polr(RatingMayT1 ~ ., data = train_macro_trn[,c(variables)], Hess=TRUE)
+
+```
+
+
+
+```{r}
+
+summary(ordered_logistic)
+
+```
+
+
+
+```{r}
+
+coefs <- coef(summary(ordered_logistic))
+print(coefs)
+
+```
+
+
+```{r}
+
+p_values <- pnorm(abs(coefs[, "t value"]), lower.tail = FALSE) * 2
+
+coefs <- cbind(coefs, "p value" = p_values)
+
+print(coefs)
+
+```
+
+
+
+```{r}
+
+exp(coef(ordered_logistic))
+
+```
+
+
+
+```{r}
+
+Ord_log_pr_train <- cbind(train_macro_trn[,c("CountryName","Year","RatingMayT1")], predict(ordered_logistic, train_macro_trn, type = "probs"))
+
+colnames(Ord_log_pr_train)<-c("Country","year","Observed","X1","X2","X3","X4","X5","X6")
+
+```
+
+```{r}
+
+head(Ord_log_pr_train)
+
+```
+
+
+
+```{r}
+
+for (j in 1:nrow(Ord_log_pr_train)){
+
+Ord_log_pr_train$maximaPD[j]<-max(Ord_log_pr_train$X1[j],Ord_log_pr_train$X2[j],Ord_log_pr_train$X3[j],Ord_log_pr_train$X4[j],Ord_log_pr_train$X5[j],Ord_log_pr_train$X6[j])
+
+}
+
+Ord_log_pr_train$Predicted<-ifelse(Ord_log_pr_train$X1==Ord_log_pr_train$maximaPD,1,ifelse(Ord_log_pr_train$X2==Ord_log_pr_train$maximaPD,2,ifelse(Ord_log_pr_train$X3==Ord_log_pr_train$maximaPD,3,ifelse(Ord_log_pr_train$X4==Ord_log_pr_train$maximaPD,4,ifelse(Ord_log_pr_train$X5==Ord_log_pr_train$maximaPD,5,6)))))
+
+```
+
+
+
+```{r}
+
+model_assessment(Ord_log_pr_train,"Ordered_logistic")
+
+```
+
+
+
+```{r}
+
+Ord_log_pr_test <- cbind(test_macro_trn[,c("CountryName","Year","RatingMayT1")], predict(ordered_logistic, test_macro_trn, type = "probs"))
+
+colnames(Ord_log_pr_test)<-c("Country","year","Observed","X1","X2","X3","X4","X5","X6")
+
+```
+
+```{r}
+
+for (j in 1:nrow(Ord_log_pr_test)){
+
+Ord_log_pr_test$maximaPD[j]<-max(Ord_log_pr_test$X1[j],Ord_log_pr_test$X2[j],Ord_log_pr_test$X3[j],Ord_log_pr_test$X4[j],Ord_log_pr_test$X5[j],Ord_log_pr_test$X6[j])
+
+}
+
+Ord_log_pr_test$Predicted<-ifelse(Ord_log_pr_test$X1==Ord_log_pr_test$maximaPD,1,ifelse(Ord_log_pr_test$X2==Ord_log_pr_test$maximaPD,2,ifelse(Ord_log_pr_test$X3==Ord_log_pr_test$maximaPD,3,ifelse(Ord_log_pr_test$X4==Ord_log_pr_test$maximaPD,4,ifelse(Ord_log_pr_test$X5==Ord_log_pr_test$maximaPD,5,6)))))
+
+```
+
+
+
+```{r}
+
+model_assessment(Ord_log_pr_test,"Ordered_logistic")
+
+```
+
+
+
+
+```{r}
+
+save.image("Backup5.RData")
+
+```
+
+
+
+```{r}
+
+directories <- list.files(path = "../MachineLearning/CountryReports/", pattern = "201", full.names = TRUE)
+
+print(directories)
+
+```
+
+
+
+```{r}
+
+txt_files2011<-list.files(path = directories[1], pattern = ".txt",  recursive=TRUE,full.names = TRUE)
+txt_files2012<-list.files(path = directories[2], pattern = ".txt",  recursive=TRUE,full.names = TRUE)
+txt_files2013<-list.files(path = directories[3], pattern = ".txt",  recursive=TRUE,full.names = TRUE)
+txt_files2014<-list.files(path = directories[4], pattern = ".txt",  recursive=TRUE,full.names = TRUE)
+txt_files2015<-list.files(path = directories[5], pattern = ".txt",  recursive=TRUE,full.names = TRUE)
+txt_files2016<-list.files(path = directories[6], pattern = ".txt",  recursive=TRUE,full.names = TRUE)
+txt_files2017<-list.files(path = directories[7], pattern = ".txt",  recursive=TRUE,full.names = TRUE)
+txt_files2018<-list.files(path = directories[8], pattern = ".txt",  recursive=TRUE,full.names = TRUE)
+
+```
+
+
+
+```{r}
+
+country_reports_list<-do.call(c,list(txt_files2011,txt_files2012,txt_files2013,txt_files2014,txt_files2015,txt_files2016,txt_files2017,txt_files2018))
+
+head(country_reports_list)
+
+```
+
+
+
+```{r}
+
+list<-data.frame(country_reports_list)
+
+list<-data.frame(t(data.frame(strsplit(as.character(list$country_reports_list), "/"))))
+
+list<-list[,(ncol(list)-1):ncol(list)]
+
+row.names(list)<-NULL
+
+list<-cbind(list,country_reports_list)
+
+colnames(list)<-c("Year","file","root")
+
+head(list)
+
+```
+
+
+
+```{r}
+
+list$CountryMapping<-NA
+
+list[grep("austria",list$file),"CountryMapping"]<-"Austria"
+list[grep("belgium",list$file),"CountryMapping"]<-"Belgium"
+list[grep("bulgaria",list$file),"CountryMapping"]<-"Bulgaria"
+list[grep("croatia",list$file),"CountryMapping"]<-"Croatia"
+list[grep("cyprus",list$file),"CountryMapping"]<-"Cyprus"
+list[grep("czech",list$file),"CountryMapping"]<-"Czech Republic"
+list[grep("denmark",list$file),"CountryMapping"]<-"Denmark"
+list[grep("estonia",list$file),"CountryMapping"]<-"Estonia"
+list[grep("finland",list$file),"CountryMapping"]<-"Finland"
+list[grep("france",list$file),"CountryMapping"]<-"France"
+list[grep("germany",list$file),"CountryMapping"]<-"Germany"
+list[grep("greece",list$file),"CountryMapping"]<-"Greece"
+list[grep("hungary",list$file),"CountryMapping"]<-"Hungary"
+list[grep("ireland",list$file),"CountryMapping"]<-"Ireland"
+list[grep("italy",list$file),"CountryMapping"]<-"Italy"
+list[grep("latvia",list$file),"CountryMapping"]<-"Latvia"
+list[grep("lithuania",list$file),"CountryMapping"]<-"Lithuania"
+list[grep("luxembourg",list$file),"CountryMapping"]<-"Luxembourg"
+list[grep("malta",list$file),"CountryMapping"]<-"Malta"
+list[grep("netherlands",list$file),"CountryMapping"]<-"Netherlands"
+list[grep("poland",list$file),"CountryMapping"]<-"Poland"
+list[grep("portugal",list$file),"CountryMapping"]<-"Portugal"
+list[grep("romania",list$file),"CountryMapping"]<-"Romania"
+list[grep("slovakia",list$file),"CountryMapping"]<-"Slovakia"
+list[grep("slovenia",list$file),"CountryMapping"]<-"Slovenia"
+list[grep("spain",list$file),"CountryMapping"]<-"Spain"
+list[grep("sweden",list$file),"CountryMapping"]<-"Sweden"
+list[grep("uk",list$file),"CountryMapping"]<-"United Kingdom"
+list[grep("kingdom",list$file),"CountryMapping"]<-"United Kingdom"
+list[grep("netherland",list$file),"CountryMapping"]<-"Netherlands"
+
+```
+
+
+
+
+
+```{r}
+
+table(list$CountryMapping)
+
+```
+
+
+
+```{r}
+
+train_list<-train_macro[,c("CountryName","Year")]
+train_list$year_report<-train_list$Year+1
+
+train_list<-merge(train_list,list,by.x=c("CountryName","year_report"),by.y=c("CountryMapping","Year"),all.x=TRUE)
+
+train_list<-train_list[complete.cases(train_list),]
+
+files_train<-as.vector(train_list$root)
+
+```
+
+
+
+```{r}
+
+print(head(files_train))
+
+```
+
+
+
+```{r}
+
+test_list<-test_macro[,c("CountryName","Year")]
+test_list$year_report<-test_list$Year+1
+
+test_list<-merge(test_list,list,by.x=c("CountryName","year_report"),by.y=c("CountryMapping","Year"),all.x=TRUE)
+
+test_list<-test_list[complete.cases(test_list),]
+
+files_test<-as.vector(test_list$root)
+
+
+```
+
+```{r}
+
+print(head(files_test))
+
+```
+
+
+```{r}
+
+print(paste("The number of countries used to train previous model was formed by",nrow(train_macro_trn), "countries",sep=" "))
+
+print(paste("The number of countries which we will use to train this new model will be formed by",nrow(train_list), "countries",sep=" "))
+
+```
+
+```{r}
+
+print(paste("The number of countries used to validate previous model was formed by",nrow(test_macro_trn), "countries",sep=" "))
+
+print(paste("The number of countries which we will use to train this new model will be formed by",nrow(test_list), "countries",sep=" "))
+
+```
+
+
+
+```{r}
+
+Import_txt <- function(txt) {
+x<-as.data.frame(read.delim(txt, header=FALSE, comment.char="#", stringsAsFactors=FALSE))
+return(x)
+}
+
+```
+
+
+
+```{r}
+
+Reports_train <-   lapply(files_train, 
+                 function(x) 
+                 read.delim(x, 
+                            header = FALSE, comment.char="#",
+                            stringsAsFactors = FALSE))
+
+
+Reports_test <-   lapply(files_test, 
+                 function(x) 
+                 read.delim(x, 
+                            header = FALSE, comment.char="#",
+                            stringsAsFactors = FALSE))
+```
+
+
+
+```{r}
+
+rm(list=setdiff(ls(), c("macroeconomic_data","Reports_train","Reports_test","train_list","test_list")))
+
+```
+
+```{r}
+
+save.image("Backup6.RData")
+
+```
+
+
+
+```{r}
+
+library(tm)
+
+```
+
+```{r}
+
+docs_train <- as.VCorpus(Reports_train)
+
+docs_test <- as.VCorpus(Reports_test)
+
+```
+
+
+
+```{r}
+
+corpus_treatment<-function(corpus){
+  
+toSpace <- content_transformer(function(x, pattern) {return (gsub(pattern, " ", x))})
+
+corpus <- tm_map(corpus,PlainTextDocument)
+corpus <- tm_map(corpus, toSpace, "-")
+corpus <- tm_map(corpus, toSpace, ":")
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, toSpace, "'")
+corpus <- tm_map(corpus, toSpace, "'")
+corpus <- tm_map(corpus, toSpace, " -")
+corpus <- tm_map(corpus,content_transformer(tolower))
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+corpus <- tm_map(corpus, stripWhitespace)
+return(corpus)
+}
+
+```
+
+
+
+```{r}
+
+docs_train<-corpus_treatment(docs_train)
+
+docs_test<-corpus_treatment(docs_test)
+
+```
+
+
+
+```{r}
+
+library(SnowballC)
+
+```
+
+
+```{r}
+
+docs_train <- tm_map(docs_train,stemDocument)
+
+docs_test <- tm_map(docs_test,stemDocument)
+
+```
+
+
+
+```{r}
+
+library(RWeka)
+
+```
+
+
+```{r}
+
+options(mc.cores=4) 
+
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 1, max = 2)) 
+
+```
+
+
+
+```{r}
+
+tdm2_train <- TermDocumentMatrix(docs_train, control = list(tokenize = BigramTokenizer,wordLengths = c(3,20)))
+
+```
+
+
+
+
+```{r}
+
+tdm2_test <- TermDocumentMatrix(docs_test, control = list(dictionary = Terms(tdm2_train),tokenize = BigramTokenizer,wordLengths = c(3,20)))
+
+```
+
+
+
+```{r}
+
+tdm2_train
+
+```
+
+
+```{r}
+
+tdm2_test
+
+```
+
+
+
+```{r}
+
+tdm2_train2 <- removeSparseTerms(tdm2_train, 0.75)
+tdm2_train2
+
+```
+
+
+
+```{r}
+
+print(as.matrix(tdm2_train2[1:10, 1:4]))
+
+```
+
+
+
+```{r}
+
+print(head(as.character(train_list$root),4))
+
+```
+
+
+
+```{r}
+
+freq <- rowSums(as.matrix(tdm2_train2))
+ord <- order(freq,decreasing=TRUE)
+
+```
+
+
+
+
+```{r}
+
+freq[head(ord,20)]
+
+```
+
+
+
+```{r}
+
+library(wordcloud)
+
+```
+
+
+```{r}
+set.seed(1234)
+
+wordcloud(row.names(tdm2_train2), freq = freq, max.words=200,min.freq=4000,scale=c(2,.4),
+random.order = FALSE,rot.per=.5,vfont=c("sans serif","plain"),colors=palette())
+
+```
+
+
+
+
+```{r}
+
+tdm2_train2 <- as.matrix(tdm2_train2)
+
+dim(tdm2_train2)
+
+tdm2_train2 <- t(tdm2_train2)
+
+```
+
+```{r}
+
+tdm2_test2<-as.matrix(tdm2_test)
+tdm2_test2 <- t(tdm2_test2)
+
+rm(tdm2_test)
+
+```
+
+
+
+```{r}
+
+rm(list=setdiff(ls(), c("macroeconomic_data","train_list","test_list","tdm2_test2","tdm2_train2")))
+
+```
+
+
+
+```{r}
+
+save.image("Backup7.RData")
+
+```
+
+
+
+```{r}
+
+train_list<-merge(train_list[,c("Year","CountryName","year_report")],macroeconomic_data[,c("CountryName","Year","RatingMayT1")],by=c("CountryName","Year"),all.x=TRUE)
+
+test_list<-merge(test_list[,c("Year","CountryName","year_report")],macroeconomic_data[,c("CountryName","Year","RatingMayT1")],by=c("CountryName","Year"),all.x=TRUE)
+
+```
+
+```{r}
+
+training <- cbind(train_list,tdm2_train2)
+
+validation <- cbind(test_list,tdm2_test2)
+
+```
+
+
+
+```{r}
+
+head(colnames(training),7)
+
+```
+
+
+
+```{r}
+
+correlations = matrix("NA",nrow=(ncol(training)-4),2) 
+ncolumns<-ncol(training)
+
+for (i in 5:ncolumns){
+  
+  correlations[i-4,1]<-colnames(training[i])
+  correlations[i-4,2]<-as.numeric(cor(training[,i],as.numeric(as.character(training[,"RatingMayT1"]))))
+
+  
+}
+
+```
+
+
+```{r}
+
+correlations<-data.frame(correlations)
+
+colnames(correlations)<-c("word","correlation")
+
+correlations$abs_corr<-abs(as.numeric(as.character(correlations$correlation)))
+
+correlations<-correlations[order(correlations$abs_corr,decreasing = TRUE),]
+
+```
+
+
+
+```{r}
+
+head(correlations,10)
+
+```
+
+
+```{r}
+
+list_vars<-dput(as.vector(correlations$word[1:1000]))
+
+
+```
+
+
+```{r}
+
+save.image("Backup8.RData")
+
+```
+
+
+
+
+```{r}
+
+library(glmnet)
+
+```
+
+
+
+```{r}
+
+training$RatingMayT1<-as.factor(training$RatingMayT1)
+validation$RatingMayT1<-as.factor(validation$RatingMayT1)
+
+```
+
+
+
+```{r}
+
+xtrain<-training[,list_vars]
+
+ytrain<-training$RatingMayT1
+
+```
+
+
+
+```{r}
+
+validation$RatingMayT1<-as.factor(validation$RatingMayT1)
+
+xtest<-validation[,list_vars]
+
+ytest<-validation$RatingMayT1
+
+```
+
+
+
+
+```{r}
+
+set.seed(1234)
+
+ModelLasso <- cv.glmnet(y =  ytrain, x=data.matrix(xtrain[,list_vars]), alpha=1,family='multinomial',type.multinomial = "grouped",parallel=TRUE)
+
+```
+
+
+
+```{r}
+
+table(ytrain)
+
+```
+
+
+
+```{r}
+
+ytrain<-gsub("1","2",ytrain)
+
+ytest<-gsub("1","2",ytest)
+
+```
+
+
+
+```{r}
+
+table(ytrain)
+
+```
+
+```{r}
+set.seed(1234)
+
+ModelLasso <- cv.glmnet(y =  ytrain, x=data.matrix(xtrain[,list_vars]), alpha=1,family='multinomial',type.multinomial = "grouped")
+
+```
+
+
+
+```{r}
+
+plot(ModelLasso)
+
+```
+
+
+
+```{r}
+
+log(ModelLasso$lambda.min)
+
+```
+ 
+
+```{r}
+
+best_lambda <- ModelLasso$lambda.1se
+print(best_lambda)
+
+```
+
+
+
+```{r}
+
+predictLASSO_train <- predict(ModelLasso, newx = data.matrix(xtrain[,list_vars]), 
+type = "class", s = ModelLasso$lambda.1se)
+
+predictLASSO_train<-as.data.frame(cbind(training[,1:2],ytrain ,predictLASSO_train))
+colnames(predictLASSO_train)<-c("Country","Year","Rating","Prediction")
+
+table(predictLASSO_train$Rating,predictLASSO_train$Prediction)
+
+```
+
+
+```{r}
+
+predictLASSO_test <- predict(ModelLasso, newx = data.matrix(xtest), 
+type = "class", s = ModelLasso$lambda.1se)
+
+predictLASSO_test<-as.data.frame(cbind(validation[,1:2],ytest ,predictLASSO_test))
+colnames(predictLASSO_test)<-c("Country","Year","Rating","Prediction")
+
+table(predictLASSO_test$Rating,predictLASSO_test$Prediction)
+
+```
+
+
+
+```{r}
+model_assessment<-function(data,model){
+
+data$Observed<-as.numeric(as.character(data$Rating))
+data$Predicted<-as.numeric(as.character(data$Prediction))
+data$df<-abs(as.numeric(data$Predicted)-as.numeric(data$Observed))
+comparison<-as.data.frame(table(data$df))
+comparison$perc<-comparison$Freq/nrow(data)
+colnames(comparison)<-c("notch","N",paste("perc_",model,sep=''))
+comparison$N<-NULL
+return(comparison)
+}
+
+```
+
+
+```{r}
+
+model_assessment(predictLASSO_train,"Train_LASSO")
+
+model_assessment(predictLASSO_test,"Test_LASSO")
+
+```
+
+
+
+```{r}
+
+coefs<-coef(ModelLasso, s = "lambda.1se")
+
+```
+
+
+
+```{r}
+
+coefs2<-coefs$`2`
+list_coefs2<-as.data.frame(coefs2@Dimnames)
+colnames(list_coefs2)<-c("variable","id")
+list_coefs2$id<-as.numeric(row.names(list_coefs2))-1
+aux_coefs2<-cbind(as.data.frame(coefs2@i),as.data.frame(coefs2@x))
+colnames(aux_coefs2)<-c("id","coefficient")
+list_coefs2<-merge(list_coefs2,aux_coefs2,by.x="id")
+rm(coefs2,aux_coefs2)
+
+```
+
+
+
+```{r}
+
+head(list_coefs2[order(list_coefs2$coefficient,decreasing = TRUE),],10)
+
+```
+
+
+
+
+```{r}
+
+coefs6<-coefs$`6`
+list_coefs6<-as.data.frame(coefs6@Dimnames)
+colnames(list_coefs6)<-c("variable","id")
+list_coefs6$id<-as.numeric(row.names(list_coefs6))-1
+aux_coefs6<-cbind(as.data.frame(coefs6@i),as.data.frame(coefs6@x))
+colnames(aux_coefs6)<-c("id","coefficient")
+list_coefs6<-merge(list_coefs6,aux_coefs6,by.x="id")
+rm(coefs6,aux_coefs6)
+
+```
+
+
+```{r}
+
+head(list_coefs6[order(list_coefs6$coefficient,decreasing = TRUE),],10)
+
+```
+
+
+```{r}
+
+save.image("Backup9.RData")
+
+```
+
