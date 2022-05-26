@@ -1,3 +1,7 @@
+## [Get this title for $10 on Packt's Spring Sale](https://www.packt.com/B13931?utm_source=github&utm_medium=packt-github-repo&utm_campaign=spring_10_dollar_2022)
+-----
+For a limited period, all eBooks and Videos are only $10. All the practical content you need \- by developers, for developers
+
 # Machine Learning with R Quick Start Guide
 
 <a href="https://www.packtpub.com/big-data-and-business-intelligence/mastering-machine-learning-r-third-edition?utm_source=github&utm_medium=repository&utm_campaign=9781789618006"><img src="https://prod.packtpub.com/media/catalog/product/cache/a22c7d190d97ca25f5f1089471ab8502/b/1/b13931_cover.png" alt="Machine Learning with R Quick Start Guide" height="256px" align="right"></a>
